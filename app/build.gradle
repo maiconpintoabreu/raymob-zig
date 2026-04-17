@@ -1,6 +1,20 @@
 plugins {
     id 'com.android.application'
 }
+import org.apache.tools.ant.taskdefs.condition.Os
+
+def targetMap = [
+    "arm64-v8a"  : "aarch64-linux-android",
+    "armeabi-v7a": "arm-linux-androideabi",
+    "x86_64"     : "x86_64-linux-android",
+    // "x86"        : "i686-linux-android",
+    // "riscv64"    : "riscv64-linux-android",
+]
+
+def getZigPath() {
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) return "zig.exe"
+    return System.getenv("ZIG_PATH") ?: "zig"
+}
 
 // Updates a file during compilation
 // Used to replace instances of 'com.raylib.raymob'
@@ -34,13 +48,63 @@ static def getGLVersionCode(String version) {
     return versionCodes[version]
 }
 
+targetMap.each { abi, zigTarget ->
+    tasks.register("buildZig_${abi}", Exec) {
+        group = "build"
+        description = "Build Zig library for ${abi}"
+        workingDir "src/main/zig/"
+
+        commandLine getZigPath(), 'build',
+                "-Dtarget=${zigTarget}",
+                '-Doptimize=ReleaseSmall',
+                '-Dnative_lib_name=raymobzig',
+                '-Dgl_version=ES20'
+
+        doLast {
+            def destDir = file("src/main/jniLibs/${abi}")
+            destDir.mkdirs()
+
+            copy {
+                from("src/main/zig/zig-out") {
+                    include "**/*.so"
+                }
+                into destDir
+                eachFile { path = name }
+                includeEmptyDirs = false
+            }
+            destDir.setLastModified(System.currentTimeMillis())
+        }
+    }
+}
+
+tasks.register('buildZigAll') {
+    group = "build"
+    description = "Build Zig libraries for all Android ABIs"
+    
+    // This task simply depends on all the dynamically generated tasks
+    dependsOn targetMap.keySet().collect { abi -> "buildZig_${abi}" }
+}
+
+tasks.configureEach { task ->
+    if (task.name == 'mergeDebugJniLibFolders' || task.name == 'mergeReleaseJniLibFolders') {
+        task.dependsOn buildZigAll
+    }
+}
+
 android {
     namespace project.properties['app.application_id']
-    compileSdk 34
+    compileSdk 36
+    ndkVersion "28.0.13004108"
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['src/main/jniLibs']
+        }
+    }
 
     defaultConfig {
-        minSdk 24
-        targetSdk 34
+        minSdk 26
+        targetSdk 36
 
         applicationId project.properties['app.application_id']
         versionCode Integer.parseInt(project.properties['app.version_code'])
@@ -57,7 +121,7 @@ android {
         // Substitution variables for the manifest
         manifestPlaceholders = [
             'GL_VERSION_CODE': getGLVersionCode(project.properties['gl.version']) ?: "0x00020000",
-            'APP_LIB_NAME': project.properties['app.native_library_name'] ?: "raymob",
+            'APP_LIB_NAME': project.properties['app.native_library_name'] ?: "raymobzig",
             'APP_ORIENTATION': project.properties['app.orientation'] ?: "landscape",
             'APP_CATEGORY': project.properties['app.category'] ?: "DEFAULT",
             'REQUIRE_INTERNET': project.properties['requirements.internet'] ?: "false",
@@ -65,19 +129,6 @@ android {
             'REQUIRE_GYROSCOPE': project.properties['requirements.gyroscope'] ?: "false",
             'REQUIRE_ACCELEROMETER': project.properties['requirements.accelerometer'] ?: "false"
         ]
-
-        // Give to CMake the name of the library
-        externalNativeBuild {
-            cmake {
-                def nativeLibName = project.findProperty('app.native_library_name') ?: 'raymob'
-                def glVersion = project.findProperty('gl.version') ?: 'ES20'
-
-                arguments "-DPLATFORM=Android",
-                          "-DBUILD_EXAMPLES=OFF",
-                          "-DAPP_LIB_NAME=$nativeLibName",
-                          "-DGL_VERSION=$glVersion"
-            }
-        }
 
         applicationVariants.all { variant ->
             // Change output names to the correct ones
@@ -104,8 +155,8 @@ android {
         updateFile("proguard-rules.pro", "com.raylib.raymob", project.properties['app.application_id'])
 
         // Modify the library name in raymob C source
-        updateFile("src/main/cpp/deps/raymob/display.c", "com/raylib/raymob", project.properties['app.application_id'].replace(".", "/"))
-        updateFile("src/main/cpp/deps/raymob/soft_keyboard.c", "com/raylib/raymob", project.properties['app.application_id'].replace(".", "/"))
+        // updateFile("src/main/cpp/deps/raymob/display.c", "com/raylib/raymob", project.properties['app.application_id'].replace(".", "/"))
+        // updateFile("src/main/cpp/deps/raymob/soft_keyboard.c", "com/raylib/raymob", project.properties['app.application_id'].replace(".", "/"))
 
     }
 
@@ -124,8 +175,8 @@ android {
         updateFile("proguard-rules.pro", project.properties['app.application_id'], "com.raylib.raymob")
 
         // Restore the library name in raymob C source
-        updateFile("src/main/cpp/deps/raymob/display.c", project.properties['app.application_id'].replace(".", "/"), "com/raylib/raymob")
-        updateFile("src/main/cpp/deps/raymob/soft_keyboard.c", project.properties['app.application_id'].replace(".", "/"), "com/raylib/raymob")
+        // updateFile("src/main/cpp/deps/raymob/display.c", project.properties['app.application_id'].replace(".", "/"), "com/raylib/raymob")
+        // updateFile("src/main/cpp/deps/raymob/soft_keyboard.c", project.properties['app.application_id'].replace(".", "/"), "com/raylib/raymob")
 
     }
 
@@ -149,15 +200,15 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-    externalNativeBuild {
-        cmake {
-            path file('src/main/cpp/CMakeLists.txt')
-            version '3.30.3'
-        }
-    }
     buildFeatures {
         buildConfig true
         viewBinding true
+    }
+    buildToolsVersion '36.1.0'
+}
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(18)
     }
 }
 
