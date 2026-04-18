@@ -3,6 +3,7 @@ const std = @import("std");
 const rl = @cImport({
     @cInclude("raylib.h");
     @cInclude("raymath.h");
+    @cInclude("android/asset_manager.h");
 });
 
 const BONE_SOCKETS = 3;
@@ -10,7 +11,7 @@ const BONE_SOCKET_HAT = 0;
 const BONE_SOCKET_HAND_R = 1;
 const BONE_SOCKET_HAND_L = 2;
 
-pub fn main() anyerror!void {
+export fn main() void {
     const screenWidth: i32 = 800;
     const screenHeight: i32 = 450;
 
@@ -151,4 +152,25 @@ pub fn main() anyerror!void {
             //----------------------------------------------------------------------------------
         }
     }
+}
+
+// Define the __wrap_fopen to be implemented inside Raylib
+extern "c" fn __wrap_fopen(filename: [*c]const u8, modes: [*c]const u8) callconv(.c) ?*anyopaque;
+
+// Define dlsym and RTLD_NEXT to be able to call system fopen as I am overriding it bellow
+// https://pubs.opengroup.org/onlinepubs/009604299/functions/dlsym.html
+extern "c" fn dlsym(handle: ?*anyopaque, symbol: [*c]const u8) ?*anyopaque;
+const RTLD_NEXT = @as(?*anyopaque, @ptrFromInt(@as(usize, @bitCast(@as(isize, -1)))));
+
+// Override fopen to call __wrap_fopen
+export fn fopen(filename: [*c]const u8, modes: [*c]const u8) callconv(.c) ?*anyopaque {
+    return __wrap_fopen(filename, modes);
+}
+
+// Implement __real_fopen as Raylib needs it to open files that are not inside assets folder
+export fn __real_fopen(filename: [*c]const u8, modes: [*c]const u8) callconv(.c) ?*anyopaque {
+    const real_fopen_ptr = dlsym(RTLD_NEXT, "fopen") orelse return null;
+    const real_fopen: *const fn ([*c]const u8, [*c]const u8) callconv(.c) ?*anyopaque = @ptrCast(@alignCast(real_fopen_ptr));
+
+    return real_fopen(filename, modes);
 }
