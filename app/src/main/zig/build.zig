@@ -1,23 +1,5 @@
 const std = @import("std");
 
-fn translateCMod(
-    comptime header: []const u8,
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    raylib: *std.Build.Step.Compile,
-) void {
-    const c = b.addTranslateC(.{
-        .root_source_file = b.path("src/" ++ header ++ ".h"),
-        .target = target,
-        .optimize = optimize,
-        .link_libc = true,
-    });
-    const c_mod = c.createModule();
-    c_mod.linkLibrary(raylib);
-    b.modules.put(b.graph.arena, header, c_mod) catch @panic("OOM");
-}
-
 pub fn build(b: *std.Build) void {
     const native_lib_name = b.option([]const u8, "native_lib_name", "Name of the output library") orelse "raymobzig";
     const gl_version = b.option([]const u8, "gl_version", "OpenGL ES version (ES20, ES30)") orelse "ES20";

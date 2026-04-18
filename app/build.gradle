@@ -11,7 +11,7 @@ def targetMap = [
     // "riscv64"    : "riscv64-linux-android",
 ]
 
-def getZigPath() {
+static def getZigPath() {
     if (Os.isFamily(Os.FAMILY_WINDOWS)) return "zig.exe"
     return System.getenv("ZIG_PATH") ?: "zig"
 }
@@ -22,15 +22,6 @@ def updateFile(filePath, toReplace, replacement) {
     def file = file(filePath)
     def modifiedContent = file.text.replaceAll(toReplace, replacement)
     file.write(modifiedContent)
-}
-
-// Checks if one or more values in a set
-// of properties in gradle.properties are true
-def isAtLeastOnePropertyTrueForPrefix(String prefix) {
-    def properties = project.properties
-    return properties.any { key, value ->
-        key.startsWith(prefix) && value == 'true'
-    }
 }
 
 // Returns the hexadecimal code of the desired OpenGL version
@@ -193,7 +184,6 @@ android {
             debuggable false
             jniDebuggable false
             pseudoLocalesEnabled false
-            zipAlignEnabled true
         }
     }
     compileOptions {
