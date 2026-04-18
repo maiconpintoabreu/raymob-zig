@@ -33,8 +33,8 @@
     // internet connectivity.
     .dependencies = .{
         .raylib = .{
-            .url = "git+https://github.com/HaxSam/raylib?ref=refactor-build-zig#face5c596ab51e2230dda2f8816ca533fd28e138",
-            .hash = "raylib-6.0.0-whq8uJ5PLgWSh99EBA0PuJql7uMrcz7qFxtfXSLa0mm4",
+            .url = "git+https://github.com/HaxSam/raylib?ref=refactor-build-zig#1bd658fed9d7cd64e9dcb31f124acf3b4e0f57e5",
+            .hash = "raylib-6.0.0-whq8uA8-LgXCMWN2UWgxy697Krx1NGMy45gT7jLPOcVn",
         },
     },
     .paths = .{
