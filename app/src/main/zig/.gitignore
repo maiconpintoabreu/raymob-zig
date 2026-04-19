@@ -1,3 +1,4 @@
-.zig-cache
-zig-out
-zig-pkg
+# Zig
+.zig-cache/
+zig-out/
+zig-pkg/

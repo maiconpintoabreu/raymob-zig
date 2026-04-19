@@ -18,5 +18,4 @@ If you already have this version of SDK and NDK without having Android Studio, y
    ```
    git clone --recurse-submodules https://github.com/maiconpintoabreu/raymob-zig.git
    ```
-2. Run `./gradlew assembleDebug` to generate the *.apk
-3. The APK will be placed in `app/build/outputs/apk/debug` directory!
+2. Open Project using Android Studio to finish the setup.

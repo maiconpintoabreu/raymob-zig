@@ -3,7 +3,6 @@ const std = @import("std");
 const rl = @cImport({
     @cInclude("raylib.h");
     @cInclude("raymath.h");
-    @cInclude("android/asset_manager.h");
 });
 
 const BONE_SOCKETS = 3;
